@@ -1012,9 +1012,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             Check.NotNull(selectClause, nameof(selectClause));
             Check.NotNull(queryModel, nameof(queryModel));
 
-            var sequenceType = _expression.Type.GetSequenceType();
-
-            if (selectClause.Selector.Type == sequenceType
+            if (selectClause.Selector.Type == _expression.Type.GetSequenceType()
                 && selectClause.Selector is QuerySourceReferenceExpression)
             {
                 return;
@@ -1027,7 +1025,7 @@ namespace Microsoft.EntityFrameworkCore.Query
                         .Visit(selectClause.Selector),
                     inProjection: true);
 
-            if ((selector.Type != sequenceType
+            if ((selector.Type != _expression.Type.GetSequenceType()
                  || !(selectClause.Selector is QuerySourceReferenceExpression))
                 && !queryModel.ResultOperators
                     .Select(ro => ro.GetType())
@@ -1522,6 +1520,27 @@ namespace Microsoft.EntityFrameworkCore.Query
                 && (querySource == null
                     || querySource == querySourceReferenceExpression.ReferencedQuerySource))
             {
+                if (querySource == null)
+                {
+                    // TODO: DRY this up with include pipeline trying to find innerQSRE in similar cases
+                    var innerQsre = (querySourceReferenceExpression.ReferencedQuerySource as FromClauseBase)?.FromExpression as QuerySourceReferenceExpression;
+                    if (innerQsre?.Type.IsGrouping() == true)
+                    {
+                        var groupByResultOperator =
+                            (GroupResultOperator)((SubQueryExpression)((MainFromClause)innerQsre.ReferencedQuerySource).FromExpression)
+                            .QueryModel.ResultOperators
+                            .Last();
+
+                        var innerQuerySource = groupByResultOperator.ElementSelector.TryGetReferencedQuerySource();
+                        if (innerQuerySource != null)
+                        {
+                            return propertyBinder(
+                                properties,
+                                innerQuerySource);
+                        }
+                    }
+                }
+
                 return propertyBinder(
                     properties,
                     querySourceReferenceExpression.ReferencedQuerySource);

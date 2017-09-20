@@ -165,7 +165,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Sql
         protected virtual string TypedFalseLiteral => "CAST(0 AS BIT)";
 
         /// <summary>
-        /// Whether schemas should be generated when generating identifiers.
+        ///     Whether schemas should be generated when generating identifiers.
         /// </summary>
         protected virtual bool SupportsSchemas { get; } = true;
 
@@ -248,6 +248,14 @@ namespace Microsoft.EntityFrameworkCore.Query.Sql
             if (selectExpression.Predicate != null)
             {
                 GeneratePredicate(selectExpression.Predicate);
+            }
+
+            if (selectExpression.GroupBy.Any())
+            {
+                _relationalCommandBuilder.AppendLine();
+
+                _relationalCommandBuilder.Append("GROUP BY ");
+                GenerateList(selectExpression.GroupBy);
             }
 
             if (selectExpression.OrderBy.Any())
@@ -447,8 +455,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Sql
         /// <param name="generationAction">The generation action.</param>
         /// <param name="joinAction">An optional join action.</param>
         protected virtual void GenerateList<T>(
-            [NotNull] IReadOnlyList<T> items, 
-            [NotNull] Action<T> generationAction, 
+            [NotNull] IReadOnlyList<T> items,
+            [NotNull] Action<T> generationAction,
             [CanBeNull] Action<IRelationalCommandBuilder> joinAction = null)
         {
             Check.NotNull(items, nameof(items));
